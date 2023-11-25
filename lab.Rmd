@@ -1,0 +1,171 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+library(ISLR2)
+library(glmnet)
+library(leaps)
+library(pls)
+library(splines)
+data("Hitters")
+```
+PART A
+
+Forward and Backward Stepwise Selection
+
+```{r}
+regfit.fwd <- regsubsets(Salary ~ ., data = Hitters,
+    nvmax = 19, method = "forward")
+summary(regfit.fwd)
+```
+
+
+
+```{r}
+regfit.fwd <- regsubsets(Salary ~ ., data = Hitters,
+    nvmax = 9, method = "forward")
+summary(regfit.fwd)
+```
+
+```{r}
+regfit.bwd <- regsubsets(Salary ~ ., data = Hitters,
+    nvmax = 19, method = "backward")
+summary(regfit.bwd)
+```
+```{r}
+regfit.bwd <- regsubsets(Salary ~ ., data = Hitters,
+    nvmax = 9, method = "backward")
+summary(regfit.bwd)
+```
+The forward and backward selection for 9 variables, instead of 19, chose the same first 9 variables and in the same order.
+
+Ridge Regression
+```{r}
+Hitters <- na.omit(Hitters) # line added because na's were present and errors encountered
+x <- model.matrix(Salary ~ ., Hitters)[, -1]
+y <- Hitters$Salary
+
+```
+
+
+```{r}
+x <- model.matrix(Salary ~ ., Hitters)[, -1]
+y <- Hitters$Salary
+grid <- 10^seq(10, -2, length = 100)
+ridge.mod <- glmnet(x, y, alpha = 0, lambda = grid)
+```
+```{r}
+dim(coef(ridge.mod))
+```
+
+```{r}
+predict(ridge.mod, s = 193, type = "coefficients")[1:20, ]
+```
+```{r}
+predict(ridge.mod, s = 50, type = "coefficients")[1:20, ]
+```
+We can see that a higher shrinkage parameter lowers the values of the coefficients. A higher shrinkage parameter increases the penalty on the coefficients and brings them closer to zero. 
+
+
+Partial Least Squares
+
+```{r}
+set.seed(1)
+train <- sample(1:nrow(x), nrow(x) / 2)
+test <- (-train)
+```
+
+Note: Validationplots were not displaying in the output, viewer, or plots panes so I ouputted them to pdf's.
+```{r}
+set.seed(1)
+pls.fit <- plsr(Salary ~ ., data = Hitters, subset = train, scale = TRUE, validation = "CV")
+summary(pls.fit)
+```
+```{r}
+pdf("validation_plot_1.pdf")
+validationplot(pls.fit, val.type = "MSEP")
+dev.off() 
+```
+
+```{r}
+set.seed(193)
+pls.fit <- plsr(Salary ~ ., data = Hitters, subset = train, scale = TRUE, validation = "CV")
+summary(pls.fit)
+```
+
+```{r}
+pdf("validation_plot_193.pdf")
+validationplot(pls.fit, val.type = "MSEP")
+dev.off() 
+```
+
+PART B
+
+```{r}
+attach(Wage)
+```
+
+```{r}
+fit <- lm(wage ~ poly(age, 4), data = Wage)
+coef(summary(fit))
+```
+
+```{r}
+agelims <- range(age)
+age.grid <- seq(from = agelims[1], to = agelims[2])
+preds <- predict(fit, newdata = list(age = age.grid),
+    se = TRUE)
+se.bands <- cbind(preds$fit + 2 * preds$se.fit,
+    preds$fit - 2 * preds$se.fit)
+```
+
+```{r}
+pdf("wage_age16.pdf")
+
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Smoothing Spline")
+fit <- smooth.spline(age, wage, df = 16)
+fit2 <- smooth.spline(age, wage, cv = TRUE)
+
+lines(fit, col = "red", lwd = 2)
+lines(fit2, col = "blue", lwd = 2)
+legend("topright", legend = c("16 DF", "6.8 DF"),
+    col = c("red", "blue"), lty = 1, lwd = 2, cex = 0.8)
+
+dev.off()
+```
+
+```{r}
+pdf("wage_age9.pdf")
+
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Smoothing Spline")
+fit <- smooth.spline(age, wage, df = 9)
+fit2 <- smooth.spline(age, wage, cv = TRUE)
+
+lines(fit, col = "red", lwd = 2)
+lines(fit2, col = "blue", lwd = 2)
+legend("topright", legend = c("9 DF", "6.8 DF"),
+    col = c("red", "blue"), lty = 1, lwd = 2, cex = 0.8)
+
+dev.off()
+```
+
+```{r}
+pdf("wage_age22.pdf")
+
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Smoothing Spline")
+fit <- smooth.spline(age, wage, df = 22)
+fit2 <- smooth.spline(age, wage, cv = TRUE)
+
+lines(fit, col = "red", lwd = 2)
+lines(fit2, col = "blue", lwd = 2)
+legend("topright", legend = c("22 DF", "6.8 DF"),
+    col = c("red", "blue"), lty = 1, lwd = 2, cex = 0.8)
+
+dev.off()
+```
+Increasing the degrees of freedom allows for greater flexibility of the model and a less smooth curve. Whether or not the model is becoming overly complex, or doing a better job in capturing the complexity of the data, would require testing. 
